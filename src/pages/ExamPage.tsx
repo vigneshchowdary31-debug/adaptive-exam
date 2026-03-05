@@ -55,7 +55,7 @@ export default function ExamPage() {
     }
   }, [exam.sessionId]);
 
-  // Transition to theory phase
+  // Transition to theory phase after finishing MCQs
   useEffect(() => {
     if (exam.questionsAnswered >= exam.totalMcqQuestions) {
       if (exam.theoryQuestions.length > 0) {
@@ -65,6 +65,14 @@ export default function ExamPage() {
       }
     }
   }, [exam.questionsAnswered, exam.totalMcqQuestions, exam.theoryQuestions, handleAutoSubmit]);
+
+  // Force theory phase when 2.5 minutes are remaining
+  useEffect(() => {
+    if (timeRemaining <= 150 && !isTheoryPhase && exam.theoryQuestions.length > 0 && !exam.isFinished) {
+      setIsTheoryPhase(true);
+      toast.info('MCQ time is up. Moving to Theory Section.');
+    }
+  }, [timeRemaining, isTheoryPhase, exam.theoryQuestions.length, exam.isFinished]);
 
   const handleSubmitTheory = async () => {
     if (!exam.sessionId) return;
@@ -265,8 +273,8 @@ export default function ExamPage() {
                     key={idx}
                     onClick={() => setSelectedOption(opt)}
                     className={`w-full text-left p-4 rounded-lg border-2 transition-all ${selectedOption === opt
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/30 bg-card'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-primary/30 bg-card'
                       }`}
                   >
                     <span className="font-mono text-xs text-muted-foreground mr-3">

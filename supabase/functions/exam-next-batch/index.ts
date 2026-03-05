@@ -34,7 +34,7 @@ serve(async (req) => {
 
     // Check time
     const elapsed = (Date.now() - new Date(session.start_time).getTime()) / 1000;
-    if (elapsed >= 20 * 60 || session.is_finished) {
+    if (elapsed >= 10 * 60 || session.is_finished) {
       return new Response(JSON.stringify({ finished: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

@@ -54,7 +54,7 @@ const initialState = {
   currentQuestionIndex: 0,
   questionsAnswered: 0,
   totalMcqQuestions: 15,
-  timeRemaining: 20 * 60,
+  timeRemaining: 10 * 60,
   startTime: null,
   violations: 0,
   isFinished: false,

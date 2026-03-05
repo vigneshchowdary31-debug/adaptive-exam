@@ -203,7 +203,7 @@ export default function ExamPage() {
 
           <div className="flex items-center gap-4">
             <div className="text-right text-sm">
-              <p className="text-muted-foreground">ID: <span className="font-mono font-semibold text-foreground">{student?.studentId}</span></p>
+              <p className="text-muted-foreground">ID: <span className="font-mono font-semibold text-foreground">{student?.student_id}</span></p>
               <p className="text-foreground font-semibold">{student?.name}</p>
             </div>
             <div className="flex items-center gap-1.5 text-sm font-mono">

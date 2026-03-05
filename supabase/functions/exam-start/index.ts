@@ -74,6 +74,7 @@ serve(async (req) => {
         .from('theory_questions')
         .select('id, question')
         .eq('tech_stack_id', existingSession.tech_stack_id)
+        .lt('created_at', existingSession.start_time)
         .limit(2);
 
       return new Response(JSON.stringify({
@@ -111,6 +112,7 @@ serve(async (req) => {
       .from('theory_questions')
       .select('id, question')
       .eq('tech_stack_id', tech_stack_id)
+      .lt('created_at', session.start_time)
       .limit(2);
 
     return new Response(JSON.stringify({

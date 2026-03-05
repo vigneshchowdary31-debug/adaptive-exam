@@ -1,0 +1,31 @@
+project_id = "daangzcvqapokswfffwv"
+
+[functions.student-login]
+verify_jwt = false
+
+[functions.exam-start]
+verify_jwt = false
+
+[functions.exam-next-batch]
+verify_jwt = false
+
+[functions.exam-submit-answer]
+verify_jwt = false
+
+[functions.exam-submit-theory]
+verify_jwt = false
+
+[functions.exam-finish]
+verify_jwt = false
+
+[functions.exam-status]
+verify_jwt = false
+
+[functions.admin-login]
+verify_jwt = false
+
+[functions.admin-schedule-exam]
+verify_jwt = false
+
+[functions.admin-upload-questions]
+verify_jwt = false

@@ -29,11 +29,27 @@ export default function ResultsPage() {
 
         <Card className="glass-card mb-4">
           <CardContent className="pt-6 space-y-4">
-            <div className="grid grid-cols-1 gap-3 pt-4">
-              <div className="text-center p-3 rounded-lg bg-muted">
+            <div className="grid grid-cols-2 gap-3 pt-4">
+              <div className="text-center p-3 rounded-lg bg-muted col-span-2">
                 <CheckCircle className="w-5 h-5 mx-auto mb-1 text-success" />
                 <p className="text-xl font-bold">{result?.correct_mcq ?? 0} / 15</p>
-                <p className="text-xs text-muted-foreground">Correct Answers</p>
+                <p className="text-xs text-muted-foreground">Correct MCQs</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-muted">
+                <p className="text-xl font-bold">{result?.mcq_score ?? 0}%</p>
+                <p className="text-xs text-muted-foreground">MCQ Score</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-muted">
+                <p className="text-xl font-bold">{result?.theory_score ?? 0}%</p>
+                <p className="text-xs text-muted-foreground">Theory Score</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-primary/10 border border-primary/20 col-span-2">
+                <p className="text-2xl font-bold text-primary">{result?.total_score ?? 0}%</p>
+                <p className="text-xs font-medium text-primary/80">Total Score</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-muted col-span-2">
+                <p className="text-xl font-bold">{result?.assigned_tier ?? 'P3'}</p>
+                <p className="text-xs text-muted-foreground">Assigned Tier</p>
               </div>
             </div>
 

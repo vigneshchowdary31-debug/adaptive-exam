@@ -37,42 +37,31 @@ serve(async (req) => {
       .update({ is_finished: true, end_time: new Date().toISOString() })
       .eq('id', session_id);
 
-    // Calculate MCQ score
+    // Calculate MCQ score based on difficulty points
+    // Easy = 1 pt, Medium = 2 pts, Hard = 3 pts
     const { data: responses } = await supabase
       .from('responses')
-      .select('is_correct, question_id')
+      .select(`
+        is_correct,
+        questions!inner(difficulty)
+      `)
       .eq('student_id', session.student_id);
 
     const totalMcq = responses?.length || 0;
     const correctMcq = responses?.filter((r: any) => r.is_correct).length || 0;
-    const mcqScore = totalMcq > 0 ? Math.round((correctMcq / 15) * 100) : 0;
 
-    // Calculate difficulty-based accuracy for tier
-    const questionIds = responses?.map((r: any) => r.question_id) || [];
-    let hardAccuracy = 0;
-    let mediumAccuracy = 0;
-
-    if (questionIds.length > 0) {
-      const { data: questions } = await supabase
-        .from('questions')
-        .select('id, difficulty')
-        .in('id', questionIds);
-
-      const diffMap: Record<string, string> = {};
-      questions?.forEach((q: any) => { diffMap[q.id] = q.difficulty; });
-
-      const hardQs = responses?.filter((r: any) => diffMap[r.question_id] === 'Hard') || [];
-      const medQs = responses?.filter((r: any) => diffMap[r.question_id] === 'Medium') || [];
-
-      if (hardQs.length > 0) {
-        hardAccuracy = (hardQs.filter((r: any) => r.is_correct).length / hardQs.length) * 100;
-      }
-      if (medQs.length > 0) {
-        mediumAccuracy = (medQs.filter((r: any) => r.is_correct).length / medQs.length) * 100;
-      }
+    let mcqScore = 0;
+    if (responses) {
+      responses.forEach((r: any) => {
+        if (r.is_correct) {
+          if (r.questions.difficulty === 'Easy') mcqScore += 1;
+          else if (r.questions.difficulty === 'Medium') mcqScore += 2;
+          else if (r.questions.difficulty === 'Hard') mcqScore += 3;
+        }
+      });
     }
 
-    // Theory score (simple: give 50% for any non-empty answer)
+    // Theory score calculation (keeping simple for compatibility, but maybe adjusting weight)
     const { data: theoryResponses } = await supabase
       .from('theory_responses')
       .select('answer_text')
@@ -83,16 +72,20 @@ serve(async (req) => {
     theoryResponses?.forEach((t: any) => {
       if (t.answer_text && t.answer_text.trim().length > 10) theoryCorrect++;
     });
+    // We didn't get instructions to change Theory points, but Total Score logic says:
+    // "Total score > 22 -> P1". And max MCQ score could be (5*1 + 5*2 + 5*3) = 30 points.
+    // If the rule entirely ignores theory or includes it, we'll assume total score is just mcqScore for the strict bounds defined, 
+    // or add theory as arbitrary points. Let's make theoryScore separate and totalScore = mcqScore, since the rules given didn't mention theory.
+    // However, I will map totalScore = mcqScore just for the tier logic, and still save theoryScore.
     const theoryScore = Math.round((theoryCorrect / theoryTotal) * 100);
 
-    // Total score (MCQ 70%, Theory 30%)
-    const totalScore = Math.round(mcqScore * 0.7 + theoryScore * 0.3);
+    const totalScore = mcqScore; // Based solely on the new rules provided
 
-    // Tier classification
+    // Tier classification based on absolute point cutoffs
     let assignedTier = 'P3';
-    if (hardAccuracy >= 70 && totalScore >= 75) {
+    if (totalScore > 22) {
       assignedTier = 'P1';
-    } else if (mediumAccuracy >= 60 && totalScore >= 50 && totalScore < 75) {
+    } else if (totalScore > 15) {
       assignedTier = 'P2';
     }
 
@@ -113,6 +106,7 @@ serve(async (req) => {
       assigned_tier: assignedTier,
       violations: session.violations,
       correct_mcq: correctMcq,
+      theory_attempted: theoryCorrect, // Using theoryCorrect as the count of attempted theory questions
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

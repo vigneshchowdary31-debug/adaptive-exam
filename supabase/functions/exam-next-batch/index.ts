@@ -54,30 +54,73 @@ serve(async (req) => {
 
     const answeredIds = (answered || []).map((a: any) => a.question_id);
 
-    // Adaptive algorithm: evaluate last 3 answers
+    // Batch structure: 5 questions per batch
+    const BATCH_SIZE = 5;
+
+    // Adaptive algorithm
     const currentDifficulty = session.current_difficulty || 'Easy';
     let nextDifficulty = currentDifficulty;
 
-    if (session.questions_answered > 0 && session.questions_answered % 3 === 0) {
-      const { data: recentResponses } = await supabase
+    // We only adapt at the end of Batch 1 (5 questions) and Batch 2 (10 questions)
+    if (session.questions_answered === 5) {
+      // Evaluating Batch 1 (Easy)
+      const { data: b1Responses } = await supabase
         .from('responses')
-        .select('is_correct')
-        .eq('student_id', session.student_id)
-        .order('created_at', { ascending: false })
-        .limit(3);
+        .select(`
+          is_correct,
+          questions!inner(difficulty)
+        `)
+        .eq('student_id', session.student_id);
 
-      if (recentResponses && recentResponses.length === 3) {
-        const correct = recentResponses.filter((r: any) => r.is_correct).length;
-        const accuracy = (correct / 3) * 100;
+      if (b1Responses) {
+        let b1Score = 0;
+        b1Responses.forEach((r: any) => {
+          if (r.is_correct) {
+            b1Score += 1; // All batch 1 questions are Easy (1pt)
+          }
+        });
 
-        if (accuracy >= 80) {
-          if (currentDifficulty === 'Easy') nextDifficulty = 'Medium';
-          else if (currentDifficulty === 'Medium') nextDifficulty = 'Hard';
-        } else if (accuracy <= 40) {
-          if (currentDifficulty === 'Hard') nextDifficulty = 'Medium';
-          else if (currentDifficulty === 'Medium') nextDifficulty = 'Easy';
+        // Rule for after Batch 1:
+        // Score < 3 -> Stay Easy
+        // Score >= 3 -> Move to Medium
+        if (b1Score < 3) {
+          nextDifficulty = 'Easy';
+        } else {
+          nextDifficulty = 'Medium';
         }
       }
+    } else if (session.questions_answered === 10) {
+      // Evaluating Batch 2 (and calculating cumulative score of Batch 1 + Batch 2)
+      const { data: b2Responses } = await supabase
+        .from('responses')
+        .select(`
+          is_correct,
+          questions!inner(difficulty)
+        `)
+        .eq('student_id', session.student_id);
+
+      if (b2Responses) {
+        let cumulativeScore = 0;
+        b2Responses.forEach((r: any) => {
+          if (r.is_correct) {
+            if (r.questions.difficulty === 'Easy') cumulativeScore += 1;
+            else if (r.questions.difficulty === 'Medium') cumulativeScore += 2;
+            else if (r.questions.difficulty === 'Hard') cumulativeScore += 3;
+          }
+        });
+
+        // Rule for after Batch 2
+        // Cumulative Score > 9 -> Move to Hard
+        // Otherwise -> Continue with Medium (or stay if it somehow was Easy)
+        if (cumulativeScore > 9) {
+          nextDifficulty = 'Hard';
+        } else {
+          nextDifficulty = 'Medium';
+        }
+      }
+    } else if (session.questions_answered === 0) {
+      // Initial state
+      nextDifficulty = 'Easy';
     }
 
     // Fetch questions at current difficulty, excluding answered ones
@@ -88,7 +131,7 @@ serve(async (req) => {
       .eq('tech_stack_id', session.tech_stack_id)
       .eq('difficulty', nextDifficulty)
       .lt('created_at', cutoffTime)
-      .limit(3);
+      .limit(BATCH_SIZE);
 
     if (answeredIds.length > 0) {
       query = query.not('id', 'in', `(${answeredIds.join(',')})`);
@@ -97,19 +140,19 @@ serve(async (req) => {
     let { data: questions } = await query;
 
     // If not enough questions at this difficulty, try adjacent difficulties
-    if (!questions || questions.length < 3) {
+    if (!questions || questions.length < BATCH_SIZE) {
       const fallbackDifficulties = nextDifficulty === 'Easy' ? ['Medium', 'Hard'] :
         nextDifficulty === 'Hard' ? ['Medium', 'Easy'] : ['Easy', 'Hard'];
 
       for (const fb of fallbackDifficulties) {
-        if (questions && questions.length >= 3) break;
+        if (questions && questions.length >= BATCH_SIZE) break;
         let fbQuery = supabase
           .from('questions')
           .select('id, question, options, difficulty')
           .eq('tech_stack_id', session.tech_stack_id)
           .eq('difficulty', fb)
           .lt('created_at', cutoffTime)
-          .limit(3 - (questions?.length || 0));
+          .limit(BATCH_SIZE - (questions?.length || 0));
 
         const excludeIds = [...answeredIds, ...(questions || []).map(q => q.id)];
         if (excludeIds.length > 0) {
@@ -122,7 +165,7 @@ serve(async (req) => {
     }
 
     // Update session difficulty
-    if (nextDifficulty !== currentDifficulty) {
+    if (nextDifficulty !== currentDifficulty || session.questions_answered === 0) {
       await supabase
         .from('exam_sessions')
         .update({ current_difficulty: nextDifficulty })

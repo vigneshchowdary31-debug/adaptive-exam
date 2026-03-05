@@ -70,11 +70,12 @@ serve(async (req) => {
       const timeRemaining = Math.max(0, 20 * 60 - elapsed);
 
       // Fetch theory questions
+      const cutoffTime = existingSession.question_cutoff_time || existingSession.start_time;
       const { data: theoryQs } = await supabase
         .from('theory_questions')
         .select('id, question')
         .eq('tech_stack_id', existingSession.tech_stack_id)
-        .lt('created_at', existingSession.start_time)
+        .lt('created_at', cutoffTime)
         .limit(2);
 
       return new Response(JSON.stringify({
@@ -88,6 +89,7 @@ serve(async (req) => {
     }
 
     // Create new session
+    const questionCutoffTime = schedule ? schedule.start_time : new Date().toISOString();
     const { data: session, error } = await supabase
       .from('exam_sessions')
       .insert({
@@ -95,6 +97,7 @@ serve(async (req) => {
         tech_stack_id,
         start_time: new Date().toISOString(),
         current_difficulty: 'Easy',
+        question_cutoff_time: questionCutoffTime,
       })
       .select()
       .single();
@@ -112,7 +115,7 @@ serve(async (req) => {
       .from('theory_questions')
       .select('id, question')
       .eq('tech_stack_id', tech_stack_id)
-      .lt('created_at', session.start_time)
+      .lt('created_at', questionCutoffTime)
       .limit(2);
 
     return new Response(JSON.stringify({

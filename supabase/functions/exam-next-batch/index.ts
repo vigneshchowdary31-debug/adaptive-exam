@@ -81,12 +81,13 @@ serve(async (req) => {
     }
 
     // Fetch questions at current difficulty, excluding answered ones
+    const cutoffTime = session.question_cutoff_time || session.start_time;
     let query = supabase
       .from('questions')
       .select('id, question, options, difficulty')
       .eq('tech_stack_id', session.tech_stack_id)
       .eq('difficulty', nextDifficulty)
-      .lt('created_at', session.start_time)
+      .lt('created_at', cutoffTime)
       .limit(3);
 
     if (answeredIds.length > 0) {
@@ -107,7 +108,7 @@ serve(async (req) => {
           .select('id, question, options, difficulty')
           .eq('tech_stack_id', session.tech_stack_id)
           .eq('difficulty', fb)
-          .lt('created_at', session.start_time)
+          .lt('created_at', cutoffTime)
           .limit(3 - (questions?.length || 0));
 
         const excludeIds = [...answeredIds, ...(questions || []).map(q => q.id)];

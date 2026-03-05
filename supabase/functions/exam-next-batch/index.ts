@@ -172,6 +172,26 @@ serve(async (req) => {
         .eq('id', session_id);
     }
 
+    // Calculate current total score
+    const { data: allResponses } = await supabase
+      .from('responses')
+      .select(`
+        is_correct,
+        questions!inner(difficulty)
+      `)
+      .eq('student_id', session.student_id);
+
+    let currentScore = 0;
+    if (allResponses) {
+      allResponses.forEach((r: any) => {
+        if (r.is_correct) {
+          if (r.questions.difficulty === 'Easy') currentScore += 1;
+          else if (r.questions.difficulty === 'Medium') currentScore += 2;
+          else if (r.questions.difficulty === 'Hard') currentScore += 3;
+        }
+      });
+    }
+
     return new Response(JSON.stringify({
       questions: (questions || []).map((q: any) => ({
         id: q.id,
@@ -181,6 +201,7 @@ serve(async (req) => {
       })),
       difficulty: nextDifficulty,
       remaining_questions: 15 - session.questions_answered,
+      current_score: currentScore,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

@@ -111,6 +111,10 @@ export default function ExamPage() {
         return;
       }
       exam.setCurrentBatch(data.questions || [], data.difficulty || 'Easy');
+
+      if (exam.questionsAnswered > 0) {
+        toast.success(`Batch Completed! Score so far: ${data.current_score || 0}. Next Difficulty: ${data.difficulty || 'Easy'}`);
+      }
     } catch (err: any) {
       toast.error('Failed to fetch questions');
     }

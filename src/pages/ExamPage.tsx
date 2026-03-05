@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useExamStore } from '@/stores/examStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -12,7 +11,7 @@ import { useAntiCheat } from '@/hooks/useAntiCheat';
 import { useExamTimer } from '@/hooks/useExamTimer';
 import { getNextBatch, submitAnswer, submitTheory, finishExam } from '@/lib/api';
 import { toast } from 'sonner';
-import { Clock, Shield, Zap, ChevronRight } from 'lucide-react';
+import { Clock, Shield, Zap, ChevronRight, BookOpen } from 'lucide-react';
 
 export default function ExamPage() {
   const navigate = useNavigate();
@@ -20,13 +19,13 @@ export default function ExamPage() {
   const exam = useExamStore();
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [theoryModalOpen, setTheoryModalOpen] = useState(false);
-  const [activeTheoryIndex, setActiveTheoryIndex] = useState<number | null>(null);
+  const [isTheoryPhase, setIsTheoryPhase] = useState(false);
+  const [activeTheoryIndex, setActiveTheoryIndex] = useState<number>(0);
   const [theoryText, setTheoryText] = useState('');
-  const [theoryTimerSec, setTheoryTimerSec] = useState(60);
-  const theoryTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const theory1ShownRef = useRef(false);
-  const theory2ShownRef = useRef(false);
+
+  const totalQuestions = exam.totalMcqQuestions + (exam.theoryQuestions.length || 2);
+  const displayQuestionNumber = isTheoryPhase ? exam.totalMcqQuestions + activeTheoryIndex + 1 : exam.questionsAnswered + 1;
+  const displayProgress = (displayQuestionNumber / totalQuestions) * 100;
 
   const handleAutoSubmit = useCallback(async () => {
     if (exam.isFinished || !exam.sessionId) return;
@@ -56,56 +55,37 @@ export default function ExamPage() {
     }
   }, [exam.sessionId]);
 
-  // Theory question triggers after 15 MCQs answered
+  // Transition to theory phase
   useEffect(() => {
-    if (exam.questionsAnswered >= 15 && !theory1ShownRef.current && exam.theoryQuestions.length > 0) {
-      theory1ShownRef.current = true;
-      showTheory(0);
+    if (exam.questionsAnswered >= exam.totalMcqQuestions) {
+      if (exam.theoryQuestions.length > 0) {
+        setIsTheoryPhase(true);
+      } else {
+        handleAutoSubmit();
+      }
     }
-  }, [exam.questionsAnswered, exam.theoryQuestions]);
+  }, [exam.questionsAnswered, exam.totalMcqQuestions, exam.theoryQuestions, handleAutoSubmit]);
 
-  const showTheory = (index: number) => {
-    setActiveTheoryIndex(index);
-    setTheoryText('');
-    setTheoryTimerSec(60);
-    setTheoryModalOpen(true);
+  const handleSubmitTheory = async () => {
+    if (!exam.sessionId) return;
 
-    if (theoryTimerRef.current) clearInterval(theoryTimerRef.current);
-    theoryTimerRef.current = setInterval(() => {
-      setTheoryTimerSec((prev) => {
-        if (prev <= 1) {
-          if (theoryTimerRef.current) clearInterval(theoryTimerRef.current);
-          handleSubmitTheory(index, '');
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  const handleSubmitTheory = async (index: number, text?: string) => {
-    if (theoryTimerRef.current) clearInterval(theoryTimerRef.current);
-    setTheoryModalOpen(false);
-    const answer = text !== undefined ? text : theoryText;
-    const q = exam.theoryQuestions[index];
-    if (q && exam.sessionId) {
-      exam.setTheoryAnswer(q.id, answer);
+    setSubmitting(true);
+    const q = exam.theoryQuestions[activeTheoryIndex];
+    if (q) {
+      exam.setTheoryAnswer(q.id, theoryText);
       try {
-        await submitTheory(exam.sessionId, q.id, answer);
-        
-        // If first theory is done and there's a second one, show it
-        if (index === 0 && exam.theoryQuestions.length > 1 && !theory2ShownRef.current) {
-          theory2ShownRef.current = true;
-          setTimeout(() => showTheory(1), 500);
-          return;
-        }
-        // If all theories answered, finish exam
-        if (index === 1 || exam.theoryQuestions.length === 1) {
+        await submitTheory(exam.sessionId, q.id, theoryText);
+
+        if (activeTheoryIndex + 1 < exam.theoryQuestions.length) {
+          setActiveTheoryIndex(activeTheoryIndex + 1);
+          setTheoryText('');
+        } else {
           handleAutoSubmit();
-          return;
         }
       } catch {
-        // silent fail, answer saved locally
+        toast.error('Failed to submit theory answer');
+      } finally {
+        setSubmitting(false);
       }
     }
   };
@@ -114,8 +94,12 @@ export default function ExamPage() {
     if (!exam.sessionId) return;
     try {
       const data = await getNextBatch(exam.sessionId);
-      if (data.finished) {
-        handleAutoSubmit();
+      if (data.finished || (data.questions && data.questions.length === 0)) {
+        if (exam.theoryQuestions.length > 0) {
+          setIsTheoryPhase(true);
+        } else {
+          handleAutoSubmit();
+        }
         return;
       }
       exam.setCurrentBatch(data.questions || [], data.difficulty || 'Easy');
@@ -141,8 +125,11 @@ export default function ExamPage() {
       exam.incrementQuestionsAnswered();
       setSelectedOption(null);
 
-      if (exam.questionsAnswered >= 15) {
-        // All MCQs answered, show theory questions instead of finishing
+      // We check if it triggers theory in the useEffect, but we also can handle moving here
+      if (exam.questionsAnswered + 1 >= exam.totalMcqQuestions) {
+        if (exam.theoryQuestions.length > 0) {
+          setIsTheoryPhase(true);
+        }
         return;
       }
 
@@ -176,9 +163,8 @@ export default function ExamPage() {
   };
 
   const currentQuestion = exam.currentBatch[exam.currentQuestionIndex];
-  const progress = (exam.questionsAnswered / exam.totalMcqQuestions) * 100;
 
-  if (!currentQuestion && !exam.isFinished) {
+  if (!isTheoryPhase && !currentQuestion && !exam.isFinished) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <p className="text-muted-foreground">Loading questions...</p>
@@ -192,10 +178,18 @@ export default function ExamPage() {
       <div className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur-md px-4 py-3">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Badge variant="outline" className={`font-mono text-xs ${difficultyColor(exam.currentDifficulty)}`}>
-              <Zap className="w-3 h-3 mr-1" />
-              {exam.currentDifficulty}
-            </Badge>
+            {!isTheoryPhase ? (
+              <Badge variant="outline" className={`font-mono text-xs ${difficultyColor(exam.currentDifficulty)}`}>
+                <Zap className="w-3 h-3 mr-1" />
+                {exam.currentDifficulty}
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="font-mono text-xs bg-primary/10 text-primary border-primary/30">
+                <BookOpen className="w-3 h-3 mr-1" />
+                Theory
+              </Badge>
+            )}
+
             <span className="text-sm text-muted-foreground">
               {exam.techStackName}
             </span>
@@ -212,25 +206,55 @@ export default function ExamPage() {
                 {exam.violations}/3
               </span>
             </div>
-            <div className={`flex items-center gap-1.5 font-mono text-sm font-semibold ${
-              timeRemaining < 60 ? 'text-destructive animate-pulse-glow' : 'text-foreground'
-            }`}>
+            <div className={`flex items-center gap-1.5 font-mono text-sm font-semibold ${timeRemaining < 60 ? 'text-destructive animate-pulse-glow' : 'text-foreground'
+              }`}>
               <Clock className="w-4 h-4" />
               {formatTime(timeRemaining)}
             </div>
           </div>
         </div>
         <div className="max-w-4xl mx-auto mt-2">
-          <Progress value={progress} className="h-1.5" />
+          <Progress value={displayProgress} className="h-1.5" />
           <p className="text-xs text-muted-foreground mt-1">
-            Question {exam.questionsAnswered + 1} of {exam.totalMcqQuestions}
+            Question {displayQuestionNumber} of {totalQuestions}
           </p>
         </div>
       </div>
 
-      {/* Question */}
+      {/* Question Area */}
       <div className="exam-container animate-slide-up">
-        {currentQuestion && (
+        {isTheoryPhase && exam.theoryQuestions[activeTheoryIndex] ? (
+          <Card className="glass-card mt-6">
+            <CardContent className="pt-6">
+              <p className="text-lg font-medium mb-6 leading-relaxed">
+                {exam.theoryQuestions[activeTheoryIndex].question}
+              </p>
+
+              <div className="space-y-4">
+                <Textarea
+                  value={theoryText}
+                  onChange={(e) => setTheoryText(e.target.value)}
+                  placeholder="Type your detailed answer here..."
+                  rows={8}
+                  className="resize-none text-base p-4"
+                />
+              </div>
+
+              <div className="flex justify-between mt-8">
+                <Button variant="outline" onClick={handleFinishExam}>
+                  Finish Exam
+                </Button>
+                <Button
+                  onClick={handleSubmitTheory}
+                  disabled={submitting || theoryText.trim().length === 0}
+                >
+                  {submitting ? 'Submitting...' : activeTheoryIndex === exam.theoryQuestions.length - 1 ? 'Finish' : 'Next'}
+                  {!submitting && <ChevronRight className="ml-1 w-4 h-4" />}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : currentQuestion ? (
           <Card className="glass-card mt-6">
             <CardContent className="pt-6">
               <p className="text-lg font-medium mb-6 leading-relaxed">{currentQuestion.question}</p>
@@ -240,11 +264,10 @@ export default function ExamPage() {
                   <button
                     key={idx}
                     onClick={() => setSelectedOption(opt)}
-                    className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                      selectedOption === opt
+                    className={`w-full text-left p-4 rounded-lg border-2 transition-all ${selectedOption === opt
                         ? 'border-primary bg-primary/5'
                         : 'border-border hover:border-primary/30 bg-card'
-                    }`}
+                      }`}
                   >
                     <span className="font-mono text-xs text-muted-foreground mr-3">
                       {String.fromCharCode(65 + idx)}.
@@ -268,40 +291,8 @@ export default function ExamPage() {
               </div>
             </CardContent>
           </Card>
-        )}
+        ) : null}
       </div>
-
-      {/* Theory Modal */}
-      <Dialog open={theoryModalOpen} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-lg" onPointerDownOutside={(e) => e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle>Theory Question</DialogTitle>
-            <DialogDescription>
-              Time remaining: {theoryTimerSec}s — Answer will auto-submit when time runs out.
-            </DialogDescription>
-          </DialogHeader>
-          {activeTheoryIndex !== null && exam.theoryQuestions[activeTheoryIndex] && (
-            <div className="space-y-4">
-              <p className="text-sm font-medium leading-relaxed">
-                {exam.theoryQuestions[activeTheoryIndex].question}
-              </p>
-              <Textarea
-                value={theoryText}
-                onChange={(e) => setTheoryText(e.target.value)}
-                placeholder="Type your answer here..."
-                rows={6}
-                className="resize-none"
-              />
-              <Button
-                onClick={() => handleSubmitTheory(activeTheoryIndex, theoryText)}
-                className="w-full"
-              >
-                Submit Answer
-              </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

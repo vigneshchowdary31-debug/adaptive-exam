@@ -26,7 +26,7 @@ export function AdminQuestions() {
     }
     try {
       const parsed = JSON.parse(jsonInput);
-      const mcqs = parsed.mcq || parsed.questions || [];
+      const mcqs = parsed.mcq || parsed.questions || parsed.mcqs || [];
       const theories = parsed.theory || parsed.theory_questions || [];
       setLoading(true);
       await uploadQuestions(selectedStack, mcqs, theories);

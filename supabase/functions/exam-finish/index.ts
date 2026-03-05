@@ -112,6 +112,7 @@ serve(async (req) => {
       total_score: totalScore,
       assigned_tier: assignedTier,
       violations: session.violations,
+      correct_mcq: correctMcq,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

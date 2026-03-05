@@ -68,7 +68,7 @@ export default function StudentLogin() {
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <Input
-                  placeholder="e.g. KL20241001"
+                  placeholder="e.g. N24H01B0001"
                   value={studentId}
                   onChange={(e) => setStudentId(e.target.value)}
                   className="h-12 text-base font-mono"

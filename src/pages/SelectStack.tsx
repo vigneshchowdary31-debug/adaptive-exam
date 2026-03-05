@@ -70,7 +70,7 @@ export default function SelectStack() {
       }
       const stackName = stacks.find((s) => s.id === selected)?.name || '';
       setSession(data.session_id, selected, stackName);
-      setTimeRemaining(data.time_remaining || 20 * 60);
+      setTimeRemaining(data.time_remaining || 10 * 60);
       setStartTime(Date.now());
       if (data.theory_questions) {
         setTheoryQuestions(data.theory_questions);
@@ -112,11 +112,10 @@ export default function SelectStack() {
             <button
               key={stack.id}
               onClick={() => setSelected(stack.id)}
-              className={`p-4 rounded-lg border-2 transition-all text-sm font-medium text-left ${
-                selected === stack.id
+              className={`p-4 rounded-lg border-2 transition-all text-sm font-medium text-left ${selected === stack.id
                   ? 'border-primary bg-primary/5 shadow-md'
                   : 'border-border bg-card hover:border-primary/40'
-              }`}
+                }`}
             >
               <Code2 className={`w-5 h-5 mb-2 ${selected === stack.id ? 'text-primary' : 'text-muted-foreground'}`} />
               {stack.name}
@@ -135,7 +134,7 @@ export default function SelectStack() {
             {!loading && <ArrowRight className="ml-2 w-4 h-4" />}
           </Button>
           <p className="text-xs text-muted-foreground mt-3">
-            Duration: 20 minutes · 15 MCQs + 2 Theory · Adaptive difficulty
+            Duration: 10 minutes · 15 MCQs + 2 Theory · Adaptive difficulty
           </p>
         </div>
       </div>

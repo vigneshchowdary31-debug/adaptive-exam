@@ -67,7 +67,7 @@ serve(async (req) => {
 
     if (existingSession) {
       const elapsed = (Date.now() - new Date(existingSession.start_time).getTime()) / 1000;
-      const timeRemaining = Math.max(0, 20 * 60 - elapsed);
+      const timeRemaining = Math.max(0, 10 * 60 - elapsed);
 
       // Fetch theory questions
       const cutoffTime = existingSession.question_cutoff_time || existingSession.start_time;
@@ -75,7 +75,6 @@ serve(async (req) => {
         .from('theory_questions')
         .select('id, question')
         .eq('tech_stack_id', existingSession.tech_stack_id)
-        .lt('created_at', cutoffTime)
         .limit(2);
 
       return new Response(JSON.stringify({
@@ -115,12 +114,11 @@ serve(async (req) => {
       .from('theory_questions')
       .select('id, question')
       .eq('tech_stack_id', tech_stack_id)
-      .lt('created_at', questionCutoffTime)
       .limit(2);
 
     return new Response(JSON.stringify({
       session_id: session.id,
-      time_remaining: 20 * 60,
+      time_remaining: 10 * 60,
       theory_questions: theoryQs || [],
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

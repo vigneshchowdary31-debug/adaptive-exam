@@ -22,6 +22,7 @@ interface ResultRow {
   correct_medium: number;
   correct_hard: number;
   theory_answers: { question: string; answer: string }[];
+  violations: number;
 }
 
 export function AdminResults() {
@@ -75,12 +76,22 @@ export function AdminResults() {
           answer: t.answer_text || 'No answer provided',
         })) || [];
 
+        // Fetch violations
+        const { data: session } = await supabase
+          .from('exam_sessions')
+          .select('violations')
+          .eq('student_id', studentId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
         return {
           ...result,
           correct_easy: correctCounts.easy,
           correct_medium: correctCounts.medium,
           correct_hard: correctCounts.hard,
           theory_answers: theoryAnswers,
+          violations: session?.violations || 0,
         };
       })
     );
@@ -103,24 +114,17 @@ export function AdminResults() {
   };
 
   const exportCSV = async () => {
-    // Fetch violations from exam_sessions
-    const studentIds = results.map(r => r.students.student_id);
-    const { data: sessions } = await supabase
-      .from('exam_sessions')
-      .select('student_id, violations, students!inner(student_id)')
-      .in('student_id', results.map(r => {
-        // need the UUID, get from a join - simplify by using result data
-        return r.id; // placeholder
-      }));
-
-    const headers = ['Student ID', 'Name', 'Tech Stack', 'MCQ Score', 'Theory Score', 'Total Score', 'Tier'];
+    const headers = ['Student ID', 'Name', 'Tech Stack', 'Easy', 'Medium', 'Hard', 'Theory Score', 'Total Score', 'Tab Switch Count', 'Tier'];
     const rows = results.map((r) => [
       r.students.student_id,
       r.students.name,
       r.tech_stacks.name,
-      r.mcq_score,
+      r.correct_easy,
+      r.correct_medium,
+      r.correct_hard,
       r.theory_score,
       r.total_score,
+      r.violations,
       r.assigned_tier,
     ]);
 
@@ -166,6 +170,7 @@ export function AdminResults() {
               <TableHead>Medium</TableHead>
               <TableHead>Hard</TableHead>
               <TableHead>Theory</TableHead>
+              <TableHead>Tab Switch Count</TableHead>
               <TableHead>Total</TableHead>
               <TableHead>Tier</TableHead>
             </TableRow>
@@ -206,7 +211,8 @@ export function AdminResults() {
                     </DialogContent>
                   </Dialog>
                 </TableCell>
-                <TableCell className="font-semibold">{r.total_score}%</TableCell>
+                <TableCell>{r.violations}</TableCell>
+                <TableCell className="font-semibold">{r.total_score}</TableCell>
                 <TableCell>
                   <Badge variant="outline" className={tierBadge(r.assigned_tier)}>
                     {r.assigned_tier}

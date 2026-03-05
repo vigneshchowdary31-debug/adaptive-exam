@@ -56,20 +56,13 @@ export default function ExamPage() {
     }
   }, [exam.sessionId]);
 
-  // Theory question triggers at min 10 and min 18
+  // Theory question triggers after 15 MCQs answered
   useEffect(() => {
-    const elapsed = 20 * 60 - timeRemaining;
-    const elapsedMin = elapsed / 60;
-
-    if (elapsedMin >= 10 && !theory1ShownRef.current && exam.theoryQuestions.length > 0) {
+    if (exam.questionsAnswered >= 15 && !theory1ShownRef.current && exam.theoryQuestions.length > 0) {
       theory1ShownRef.current = true;
       showTheory(0);
     }
-    if (elapsedMin >= 18 && !theory2ShownRef.current && exam.theoryQuestions.length > 1) {
-      theory2ShownRef.current = true;
-      showTheory(1);
-    }
-  }, [timeRemaining, exam.theoryQuestions]);
+  }, [exam.questionsAnswered, exam.theoryQuestions]);
 
   const showTheory = (index: number) => {
     setActiveTheoryIndex(index);
@@ -99,6 +92,18 @@ export default function ExamPage() {
       exam.setTheoryAnswer(q.id, answer);
       try {
         await submitTheory(exam.sessionId, q.id, answer);
+        
+        // If first theory is done and there's a second one, show it
+        if (index === 0 && exam.theoryQuestions.length > 1 && !theory2ShownRef.current) {
+          theory2ShownRef.current = true;
+          setTimeout(() => showTheory(1), 500);
+          return;
+        }
+        // If all theories answered, finish exam
+        if (index === 1 || exam.theoryQuestions.length === 1) {
+          handleAutoSubmit();
+          return;
+        }
       } catch {
         // silent fail, answer saved locally
       }
@@ -136,8 +141,8 @@ export default function ExamPage() {
       exam.incrementQuestionsAnswered();
       setSelectedOption(null);
 
-      if (exam.questionsAnswered + 1 >= exam.totalMcqQuestions) {
-        handleAutoSubmit();
+      if (exam.questionsAnswered >= 15) {
+        // All MCQs answered, show theory questions instead of finishing
         return;
       }
 
@@ -197,6 +202,10 @@ export default function ExamPage() {
           </div>
 
           <div className="flex items-center gap-4">
+            <div className="text-right text-sm">
+              <p className="text-muted-foreground">ID: <span className="font-mono font-semibold text-foreground">{student?.studentId}</span></p>
+              <p className="text-foreground font-semibold">{student?.name}</p>
+            </div>
             <div className="flex items-center gap-1.5 text-sm font-mono">
               <Shield className="w-4 h-4 text-muted-foreground" />
               <span className={exam.violations > 0 ? 'text-destructive' : 'text-muted-foreground'}>

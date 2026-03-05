@@ -4,9 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { getResults, getTechStacks } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
-import { Download } from 'lucide-react';
+import { Download, Eye } from 'lucide-react';
 
 interface ResultRow {
   id: string;
@@ -16,6 +18,10 @@ interface ResultRow {
   assigned_tier: string;
   students: { student_id: string; name: string };
   tech_stacks: { name: string };
+  correct_easy: number;
+  correct_medium: number;
+  correct_hard: number;
+  theory_answers: { question: string; answer: string }[];
 }
 
 export function AdminResults() {
@@ -30,7 +36,56 @@ export function AdminResults() {
 
   const loadResults = async (stackId?: string) => {
     const data = await getResults(stackId === 'all' ? undefined : stackId);
-    setResults((data as any) || []);
+    const basicResults = (data as any) || [];
+
+    // Fetch detailed data for each result
+    const detailedResults = await Promise.all(
+      basicResults.map(async (result: any) => {
+        const studentId = result.student_id;
+
+        // Fetch responses with question difficulties
+        const { data: responses } = await supabase
+          .from('responses')
+          .select(`
+            is_correct,
+            questions!inner(difficulty)
+          `)
+          .eq('student_id', studentId);
+
+        // Count correct by difficulty
+        const correctCounts = { easy: 0, medium: 0, hard: 0 };
+        responses?.forEach((r: any) => {
+          const diff = r.questions.difficulty.toLowerCase();
+          if (r.is_correct && correctCounts.hasOwnProperty(diff)) {
+            correctCounts[diff as keyof typeof correctCounts]++;
+          }
+        });
+
+        // Fetch theory answers
+        const { data: theoryData } = await supabase
+          .from('theory_responses')
+          .select(`
+            answer_text,
+            theory_questions!inner(question)
+          `)
+          .eq('student_id', studentId);
+
+        const theoryAnswers = theoryData?.map((t: any) => ({
+          question: t.theory_questions.question,
+          answer: t.answer_text || 'No answer provided',
+        })) || [];
+
+        return {
+          ...result,
+          correct_easy: correctCounts.easy,
+          correct_medium: correctCounts.medium,
+          correct_hard: correctCounts.hard,
+          theory_answers: theoryAnswers,
+        };
+      })
+    );
+
+    setResults(detailedResults);
   };
 
   const handleFilterChange = (val: string) => {
@@ -107,7 +162,9 @@ export function AdminResults() {
               <TableHead>Student ID</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Tech Stack</TableHead>
-              <TableHead>MCQ</TableHead>
+              <TableHead>Easy</TableHead>
+              <TableHead>Medium</TableHead>
+              <TableHead>Hard</TableHead>
               <TableHead>Theory</TableHead>
               <TableHead>Total</TableHead>
               <TableHead>Tier</TableHead>
@@ -119,8 +176,36 @@ export function AdminResults() {
                 <TableCell className="font-mono text-xs">{r.students.student_id}</TableCell>
                 <TableCell>{r.students.name}</TableCell>
                 <TableCell>{r.tech_stacks.name}</TableCell>
-                <TableCell>{r.mcq_score}%</TableCell>
-                <TableCell>{r.theory_score}%</TableCell>
+                <TableCell>{r.correct_easy}</TableCell>
+                <TableCell>{r.correct_medium}</TableCell>
+                <TableCell>{r.correct_hard}</TableCell>
+                <TableCell>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Theory Answers - {r.students.name}</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        {r.theory_answers.map((ta, idx) => (
+                          <div key={idx}>
+                            <p className="font-semibold mb-2">{ta.question}</p>
+                            <Textarea
+                              value={ta.answer}
+                              readOnly
+                              rows={3}
+                              className="resize-none"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </TableCell>
                 <TableCell className="font-semibold">{r.total_score}%</TableCell>
                 <TableCell>
                   <Badge variant="outline" className={tierBadge(r.assigned_tier)}>
@@ -131,7 +216,7 @@ export function AdminResults() {
             ))}
             {results.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                   No results yet
                 </TableCell>
               </TableRow>

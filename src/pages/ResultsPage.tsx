@@ -42,10 +42,7 @@ export default function ResultsPage() {
                 </p>
                 <p className="text-xs text-muted-foreground">Theory Attempted</p>
               </div>
-              <div className="text-center p-3 rounded-lg bg-muted col-span-2">
-                <p className="text-xl font-bold">{result?.assigned_tier ?? 'P3'}</p>
-                <p className="text-xs text-muted-foreground">Assigned Tier</p>
-              </div>
+
             </div>
 
             {result?.violations > 0 && (

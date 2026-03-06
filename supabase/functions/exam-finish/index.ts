@@ -45,7 +45,8 @@ serve(async (req) => {
         is_correct,
         questions!inner(difficulty)
       `)
-      .eq('student_id', session.student_id);
+      .eq('student_id', session.student_id)
+      .gte('created_at', session.start_time);
 
     const totalMcq = responses?.length || 0;
     const correctMcq = responses?.filter((r: any) => r.is_correct).length || 0;
@@ -65,7 +66,8 @@ serve(async (req) => {
     const { data: theoryResponses } = await supabase
       .from('theory_responses')
       .select('answer_text')
-      .eq('student_id', session.student_id);
+      .eq('student_id', session.student_id)
+      .gte('created_at', session.start_time);
 
     const theoryTotal = 2;
     let theoryCorrect = 0;

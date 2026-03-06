@@ -275,11 +275,12 @@ export default function ExamPage() {
                 {currentQuestion.options.map((opt, idx) => (
                   <button
                     key={idx}
-                    onClick={() => setSelectedOption(opt)}
+                    onClick={() => !submitting && setSelectedOption(opt)}
+                    disabled={submitting}
                     className={`w-full text-left p-4 rounded-lg border-2 transition-all ${selectedOption === opt
                       ? 'border-primary bg-primary/5'
                       : 'border-border hover:border-primary/30 bg-card'
-                      }`}
+                      } ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <span className="font-mono text-xs text-muted-foreground mr-3">
                       {String.fromCharCode(65 + idx)}.

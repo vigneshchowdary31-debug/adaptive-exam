@@ -65,15 +65,18 @@ serve(async (req) => {
     // Theory score calculation (keeping simple for compatibility, but maybe adjusting weight)
     const { data: theoryResponses } = await supabase
       .from('theory_responses')
-      .select('answer_text')
+      .select('question_id, answer_text')
       .eq('student_id', session.student_id)
       .gte('created_at', session.start_time);
 
     const theoryTotal = 2;
-    let theoryCorrect = 0;
+    const attemptedQuestions = new Set();
     theoryResponses?.forEach((t: any) => {
-      if (t.answer_text && t.answer_text.trim().length > 10) theoryCorrect++;
+      if (t.answer_text && t.answer_text.trim().length > 10) {
+        attemptedQuestions.add(t.question_id);
+      }
     });
+    const theoryCorrect = attemptedQuestions.size;
     // We didn't get instructions to change Theory points, but Total Score logic says:
     // "Total score > 22 -> P1". And max MCQ score could be (5*1 + 5*2 + 5*3) = 30 points.
     // If the rule entirely ignores theory or includes it, we'll assume total score is just mcqScore for the strict bounds defined, 

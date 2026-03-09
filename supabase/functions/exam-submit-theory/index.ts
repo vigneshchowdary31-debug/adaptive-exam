@@ -31,6 +31,21 @@ serve(async (req) => {
       });
     }
 
+    // Check if response already exists
+    const { data: existingResponse } = await supabase
+      .from('theory_responses')
+      .select('id')
+      .eq('student_id', session.student_id)
+      .eq('question_id', question_id)
+      .maybeSingle();
+
+    if (existingResponse) {
+      // Return early with success to prevent erroring out frontend
+      return new Response(JSON.stringify({ success: true, message: 'Already submitted' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     await supabase.from('theory_responses').insert({
       student_id: session.student_id,
       question_id,

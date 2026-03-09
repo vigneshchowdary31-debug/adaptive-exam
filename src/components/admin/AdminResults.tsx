@@ -21,6 +21,7 @@ interface ResultRow {
   correct_easy: number;
   correct_medium: number;
   correct_hard: number;
+  mcq_answers: { question: string; selected_option: string | null; correct_option: string; is_correct: boolean; difficulty: string }[];
   theory_answers: { question: string; answer: string }[];
   violations: number;
 }
@@ -44,22 +45,30 @@ export function AdminResults() {
       basicResults.map(async (result: any) => {
         const studentId = result.student_id;
 
-        // Fetch responses with question difficulties
+        // Fetch responses with question difficulties and details
         const { data: responses } = await supabase
           .from('responses')
           .select(`
             is_correct,
-            questions!inner(difficulty)
+            selected_option,
+            questions!inner(question, correct_option, difficulty)
           `)
           .eq('student_id', studentId);
 
-        // Count correct by difficulty
+        // Count correct by difficulty and map MCQ answers
         const correctCounts = { easy: 0, medium: 0, hard: 0 };
-        responses?.forEach((r: any) => {
+        const mcqAnswers = (responses || []).map((r: any) => {
           const diff = r.questions.difficulty.toLowerCase();
           if (r.is_correct && correctCounts.hasOwnProperty(diff)) {
             correctCounts[diff as keyof typeof correctCounts]++;
           }
+          return {
+            question: r.questions.question,
+            selected_option: r.selected_option,
+            correct_option: r.questions.correct_option,
+            is_correct: r.is_correct,
+            difficulty: r.questions.difficulty,
+          };
         });
 
         // Fetch theory answers
@@ -90,6 +99,7 @@ export function AdminResults() {
           correct_easy: correctCounts.easy,
           correct_medium: correctCounts.medium,
           correct_hard: correctCounts.hard,
+          mcq_answers: mcqAnswers,
           theory_answers: theoryAnswers,
           violations: session?.violations || 0,
         };
@@ -169,7 +179,7 @@ export function AdminResults() {
               <TableHead>Easy</TableHead>
               <TableHead>Medium</TableHead>
               <TableHead>Hard</TableHead>
-              <TableHead>Theory</TableHead>
+              <TableHead>Details</TableHead>
               <TableHead>Tab Switch Count</TableHead>
               <TableHead>Total</TableHead>
               <TableHead>Tier</TableHead>
@@ -191,22 +201,59 @@ export function AdminResults() {
                         <Eye className="w-4 h-4" />
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle>Theory Answers - {r.students.name}</DialogTitle>
+                        <DialogTitle>Details - {r.students.name}</DialogTitle>
                       </DialogHeader>
-                      <div className="space-y-4">
-                        {r.theory_answers.map((ta, idx) => (
-                          <div key={idx}>
-                            <p className="font-semibold mb-2">{ta.question}</p>
-                            <Textarea
-                              value={ta.answer}
-                              readOnly
-                              rows={3}
-                              className="resize-none"
-                            />
+                      <div className="space-y-6">
+                        {r.mcq_answers.length > 0 && (
+                          <div className="space-y-4">
+                            <h3 className="text-lg font-semibold flex items-center gap-2">
+                              MCQ Responses
+                              <Badge variant="secondary">{r.mcq_score} points</Badge>
+                            </h3>
+                            {r.mcq_answers.map((mcq, idx) => (
+                              <div key={idx} className={`p-4 rounded-lg border \${mcq.is_correct ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
+                                <p className="font-medium mb-2">Q: {mcq.question} <Badge variant="outline" className="ml-2">{mcq.difficulty}</Badge></p>
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                  <div>
+                                    <span className="text-muted-foreground block">Selected Option:</span>
+                                    <span className={`font-semibold \${mcq.is_correct ? 'text-green-500' : 'text-red-500'}`}>
+                                      {mcq.selected_option || 'Not answered'}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground block">Correct Option:</span>
+                                    <span className="font-semibold text-green-500">{mcq.correct_option}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        )}
+
+                        {r.theory_answers.length > 0 && (
+                          <div className="space-y-4 pt-4 border-t">
+                            <h3 className="text-lg font-semibold flex items-center gap-2">
+                              Theory Responses
+                              <Badge variant="secondary">{r.theory_score} points</Badge>
+                            </h3>
+                            {r.theory_answers.map((ta, idx) => (
+                              <div key={idx} className="bg-muted/50 p-4 rounded-lg">
+                                <p className="font-medium mb-3">Q: {ta.question}</p>
+                                <Textarea
+                                  value={ta.answer}
+                                  readOnly
+                                  rows={4}
+                                  className="resize-none bg-background"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {r.mcq_answers.length === 0 && r.theory_answers.length === 0 && (
+                          <p className="text-muted-foreground text-center py-4">No responses found for this student.</p>
+                        )}
                       </div>
                     </DialogContent>
                   </Dialog>

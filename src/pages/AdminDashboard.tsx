@@ -6,8 +6,9 @@ import { AdminSchedule } from '@/components/admin/AdminSchedule';
 import { AdminTechStacks } from '@/components/admin/AdminTechStacks';
 import { AdminQuestions } from '@/components/admin/AdminQuestions';
 import { AdminResults } from '@/components/admin/AdminResults';
+import { AdminAnalytics } from '@/components/admin/AdminAnalytics';
 import { Button } from '@/components/ui/button';
-import { LogOut, Calendar, Layers, FileQuestion, BarChart3 } from 'lucide-react';
+import { LogOut, Calendar, Layers, FileQuestion, BarChart3, PieChart } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { admin, logout } = useAuthStore();
@@ -38,7 +39,7 @@ export default function AdminDashboard() {
 
       <div className="container py-6">
         <Tabs defaultValue="schedule" className="space-y-6">
-          <TabsList className="grid grid-cols-4 w-full max-w-lg">
+          <TabsList className="grid grid-cols-5 w-full max-w-2xl">
             <TabsTrigger value="schedule" className="gap-1.5">
               <Calendar className="w-4 h-4" /> Schedule
             </TabsTrigger>
@@ -51,12 +52,16 @@ export default function AdminDashboard() {
             <TabsTrigger value="results" className="gap-1.5">
               <BarChart3 className="w-4 h-4" /> Results
             </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-1.5">
+              <PieChart className="w-4 h-4" /> Analytics
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="schedule"><AdminSchedule /></TabsContent>
           <TabsContent value="stacks"><AdminTechStacks /></TabsContent>
           <TabsContent value="questions"><AdminQuestions /></TabsContent>
           <TabsContent value="results"><AdminResults /></TabsContent>
+          <TabsContent value="analytics"><AdminAnalytics /></TabsContent>
         </Tabs>
       </div>
     </div>

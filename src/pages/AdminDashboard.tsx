@@ -2,13 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuthStore } from '@/stores/authStore';
-import { AdminSchedule } from '@/components/admin/AdminSchedule';
-import { AdminTechStacks } from '@/components/admin/AdminTechStacks';
+import { AdminCreateTest } from '@/components/admin/AdminCreateTest';
 import { AdminQuestions } from '@/components/admin/AdminQuestions';
 import { AdminResults } from '@/components/admin/AdminResults';
 import { AdminAnalytics } from '@/components/admin/AdminAnalytics';
 import { Button } from '@/components/ui/button';
-import { LogOut, Calendar, Layers, FileQuestion, BarChart3, PieChart } from 'lucide-react';
+import { LogOut, FilePlus, FileQuestion, BarChart3, PieChart } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { admin, logout } = useAuthStore();
@@ -38,13 +37,10 @@ export default function AdminDashboard() {
       </header>
 
       <div className="container py-6">
-        <Tabs defaultValue="schedule" className="space-y-6">
-          <TabsList className="grid grid-cols-5 w-full max-w-2xl">
-            <TabsTrigger value="schedule" className="gap-1.5">
-              <Calendar className="w-4 h-4" /> Schedule
-            </TabsTrigger>
-            <TabsTrigger value="stacks" className="gap-1.5">
-              <Layers className="w-4 h-4" /> Stacks
+        <Tabs defaultValue="create-test" className="space-y-6">
+          <TabsList className="grid grid-cols-4 w-full max-w-2xl">
+            <TabsTrigger value="create-test" className="gap-1.5">
+              <FilePlus className="w-4 h-4" /> Create Test
             </TabsTrigger>
             <TabsTrigger value="questions" className="gap-1.5">
               <FileQuestion className="w-4 h-4" /> Questions
@@ -57,8 +53,7 @@ export default function AdminDashboard() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="schedule"><AdminSchedule /></TabsContent>
-          <TabsContent value="stacks"><AdminTechStacks /></TabsContent>
+          <TabsContent value="create-test"><AdminCreateTest /></TabsContent>
           <TabsContent value="questions"><AdminQuestions /></TabsContent>
           <TabsContent value="results"><AdminResults /></TabsContent>
           <TabsContent value="analytics"><AdminAnalytics /></TabsContent>

@@ -84,11 +84,11 @@ export async function getResults(techStackFilter?: string) {
     .from('results')
     .select(`*, students!inner(student_id, name), tech_stacks!inner(name)`)
     .order('created_at', { ascending: false });
-  
+
   if (techStackFilter) {
     query = query.eq('tech_stack_id', techStackFilter);
   }
-  
+
   const { data, error } = await query;
   if (error) throw error;
   return data;
@@ -104,3 +104,10 @@ export async function getExamSchedule() {
   if (error) throw error;
   return data;
 }
+
+export async function addStudents(students: { student_id: string; name: string }[]) {
+  const { data, error } = await supabase.from('students').insert(students).select();
+  if (error) throw error;
+  return data;
+}
+

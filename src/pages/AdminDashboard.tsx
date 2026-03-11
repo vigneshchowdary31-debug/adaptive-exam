@@ -6,8 +6,9 @@ import { AdminCreateTest } from '@/components/admin/AdminCreateTest';
 import { AdminQuestions } from '@/components/admin/AdminQuestions';
 import { AdminResults } from '@/components/admin/AdminResults';
 import { AdminAnalytics } from '@/components/admin/AdminAnalytics';
+import { AdminSettings } from '@/components/admin/AdminSettings';
 import { Button } from '@/components/ui/button';
-import { LogOut, FilePlus, FileQuestion, BarChart3, PieChart } from 'lucide-react';
+import { LogOut, FilePlus, FileQuestion, BarChart3, PieChart, Settings } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { admin, logout } = useAuthStore();
@@ -38,7 +39,7 @@ export default function AdminDashboard() {
 
       <div className="container py-6">
         <Tabs defaultValue="create-test" className="space-y-6">
-          <TabsList className="grid grid-cols-4 w-full max-w-2xl">
+          <TabsList className="grid grid-cols-5 w-full max-w-3xl">
             <TabsTrigger value="create-test" className="gap-1.5">
               <FilePlus className="w-4 h-4" /> Create Test
             </TabsTrigger>
@@ -51,12 +52,16 @@ export default function AdminDashboard() {
             <TabsTrigger value="analytics" className="gap-1.5">
               <PieChart className="w-4 h-4" /> Analytics
             </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-1.5">
+              <Settings className="w-4 h-4" /> Settings
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="create-test"><AdminCreateTest /></TabsContent>
           <TabsContent value="questions"><AdminQuestions /></TabsContent>
           <TabsContent value="results"><AdminResults /></TabsContent>
           <TabsContent value="analytics"><AdminAnalytics /></TabsContent>
+          <TabsContent value="settings"><AdminSettings /></TabsContent>
         </Tabs>
       </div>
     </div>

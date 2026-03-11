@@ -86,11 +86,26 @@ serve(async (req) => {
 
     const totalScore = mcqScore; // Based solely on the new rules provided
 
+    // Fetch tier settings to use dynamic cutoffs
+    const { data: tierSettingsData } = await supabase
+      .from('tier_settings')
+      .select('tier, min_score');
+
+    let p1Cutoff = 22;
+    let p2Cutoff = 15;
+
+    if (tierSettingsData) {
+      const p1Setting = tierSettingsData.find((s: any) => s.tier === 'P1');
+      const p2Setting = tierSettingsData.find((s: any) => s.tier === 'P2');
+      if (p1Setting) p1Cutoff = p1Setting.min_score;
+      if (p2Setting) p2Cutoff = p2Setting.min_score;
+    }
+
     // Tier classification based on absolute point cutoffs
     let assignedTier = 'P3';
-    if (totalScore > 22) {
+    if (totalScore > p1Cutoff) {
       assignedTier = 'P1';
-    } else if (totalScore > 15) {
+    } else if (totalScore > p2Cutoff) {
       assignedTier = 'P2';
     }
 
